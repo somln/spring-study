@@ -1,7 +1,13 @@
 
 ### 기본 설정
 
-#### JPA와 DB 설정, 동작확인            
+#### JPA와 DB 설정, 동작확인 
+
+데이터베이스 파일 생성 방법
+* jdbc:h2:~/jpashop (최소 한번)
+* ~/jpashop.mv.db 파일 생성 확인
+* 이후 부터는 jdbc:h2:tcp://localhost/~/jpashop 이렇게 접속        
+   
 main/resources/application.yml
 ```
 spring: #띄어쓰기 없음
