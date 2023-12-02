@@ -9,7 +9,7 @@
 * 이후 부터는 jdbc:h2:tcp://localhost/~/jpashop 이렇게 접속        
    
 main/resources/application.yml
-```
+```yml
 spring: #띄어쓰기 없음
   datasource: #띄어쓰기 2칸
     url: jdbc:h2:tcp://localhost/~/jpashop #4칸
@@ -35,6 +35,28 @@ logging.level: #띄어쓰기 없음
 
 <br>
 
+test/resources/application.yml - 테스트용 설정 파일
+```yml
+spring:
+  datasource:
+    url: jdbc:h2:mem:test
+    username: sa
+    password:
+  driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        # show_sql: true
+        format_sql: true
+logging.level:
+  org.hibernate.SQL: debug
+  org.hibernate.orm.jdbc.bind: trace
+```
+
+<br>
+
 #### 쿼리 파라미터 로그 남기기
 ```
 implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0'
@@ -42,7 +64,7 @@ implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0'
 
 <br>
 
-### 도메인 설계시 주의점 
+### 엔티티 설계시 주의점 
 * 엔티티에는 가급적 Setter를 사용 X (값 타입은 변경 불가능하게 설계)
 * 모든 연관관계는 지연로딩으로 설정! -> @XToOne(OneToOne, ManyToOne) 관계는 기본이 즉시로딩이므로 직접 지연로딩으로 설정
 * 컬렉션은 필드에서 초기화
@@ -62,7 +84,8 @@ implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0'
 
 <br>
 
-### API 설계시 주의점
+### 애플리케이션 구현시 주의점
+  
 * db가 변경되는 모든 작업은 transaction 안에서 수행되어야 한다.
 
 * db를 조회만 하는 메서드는 readonly=true로 설정가능하다.
@@ -81,6 +104,56 @@ implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0'
 * 절대 entity 를 외부로 호출하고 반환하면 XXXX -> dto 사용
 
 * 엔티티를 변경할 때는 항상 변경 감지를 사용
-* 컨트롤러에서 어설프게 엔티티를 생성 X
-* 트랜잭션이 있는 서비스 계층에 식별자( id )와 변경할 데이터를 명확하게 전달(파라미터 or dto)
-* 트랜잭션이 있는 서비스 계층에서 영속 상태의 엔티티를 조회하고, 엔티티의 데이터를 직접 변경 -> 트랜잭션 커밋 시점에 변경 감지가 실행
+     * 컨트롤러에서 어설프게 엔티티를 생성 X
+     * 트랜잭션이 있는 서비스 계층에 식별자( id )와 변경할 데이터를 명확하게 전달(파라미터 or dto)
+     * 트랜잭션이 있는 서비스 계층에서 영속 상태의 엔티티를 조회하고, 엔티티의 데이터를 직접 변경 -> 트랜잭션 커밋 시점에 변경 감지가 실행
+    
+```java
+//이렇게 하지 X
+ @PostMapping(value = "/items/{itemId}/edit")
+    public String updateItem(@ModelAttribute("form") BookForm form) {
+      //이미 db에 사용된 적 있는 id이기 때문에 book은 준영속상태
+        Book book = new Book();
+        book.setId(form.getId());
+        book.setName(form.getName());
+        book.setPrice(form.getPrice()); book.setStockQuantity(form.getStockQuantity());
+        book.setAuthor(form.getAuthor());
+        book.setIsbn(form.getIsbn());
+        itemService.saveItem(book);
+        return "redirect:/items";
+    }
+
+// itemService.saveItem(book)
+
+       public void save(Item item){
+        if(item.getId()==null){
+            em.persist(item);  //id 가 없으면 신규로 보고 persist() 실행
+        }else{
+            em.merge(item);   //id 가 있으면 이미 데이터베이스에 저장된 엔티티를 수정한다고 보고, merge() 를 실행
+        }
+    }
+//em.merge를 사용할 경우 병합시 값이 없으면 null 로 업데이트 할 위험이 있어 사용하지 않는 것이 좋
+
+/*******/
+
+//이렇게 서비스 계층에서 영속 상태의 엔티티를 조회하고 변경
+ @PostMapping(value = "/items/{itemId}/edit")
+    public String updateItem(@PathVariable Long itemId, @ModelAttribute("form")
+    BookForm form) {
+        itemService.updateItem(itemId, form.getName(), form.getPrice(), form.getStockQuantity());
+        return "redirect:/items";
+    }
+
+//itemService.updateItem
+    @Transactional
+    public void updateItem(Long id, String name, int price, int stockQuantity)
+    {
+        Item item = itemRepository.findOne(id);
+        item.setName(name);
+        item.setPrice(price);
+        item.setStockQuantity(stockQuantity);
+        //직접 set을 호출하는 것보다 item.change 처럼 entity 내에 변경 메서드를 만드는 것이 좋음
+    }
+
+
+```
