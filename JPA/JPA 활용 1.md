@@ -15,14 +15,13 @@ spring: #띄어쓰기 없음
     url: jdbc:h2:tcp://localhost/~/jpashop #4칸
     username: sa 
     password:
+    driver-class-name: org.h2.Driver
 
- driver-class-name: org.h2.Driver
   jpa: #띄어쓰기 2칸
     hibernate: #띄어쓰기 4칸
       ddl-auto: create #띄어쓰기 6칸
     properties: #띄어쓰기 4칸
       hibernate: #띄어쓰기 6칸
-        #show_sql: true #띄어쓰기 8칸
         format_sql: true #띄어쓰기 8칸
 
 logging.level: #띄어쓰기 없음
